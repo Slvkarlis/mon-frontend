@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MainLayout from '../components/MainLayout';  // Comme dans ton HomeScreen
-
+import API_URL from '../config/api';
 export default function CategoryListScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +19,7 @@ export default function CategoryListScreen({ navigation }) {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch('http://localhost:8083/api/categories', {
+      const response = await fetch(`${API_URL}/api/categories`, {
         headers: {
           'Accept': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` }),

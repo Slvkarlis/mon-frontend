@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import MainLayout from '../components/MainLayout';
 
 export default function EventDetailsScreen({ route, navigation }) {
   const { event } = route.params;
+  const { currentRoute, tabs, isTabRoute } = useBottomNavigation(tabConfigurations.main);
 
   const handleBuyTicket = () => {
     Alert.alert('Achat', `Ticket acheté pour "${event.name}"`);
@@ -11,34 +12,48 @@ export default function EventDetailsScreen({ route, navigation }) {
 
   return (
     <MainLayout navigation={navigation}>
-      <View style={styles.container}>
-        {/* Image dynamique ou fallback */}
-        <Image
-          source={ event.image ? { uri: event.image } : require('../assets/sample-event.jpg') }
-          style={styles.eventImage}
-        />
+      <View style={styles.contentContainer}>
+        <ScrollView>
+          <Image
+            source={event.image ? { uri: event.image } : require('../assets/sample-event.jpg')}
+            style={styles.eventImage}
+          />
 
-        <Text style={styles.title}>{event.name}</Text>
-        <Text style={styles.location}>📍 {event.location}</Text>
-        <Text style={styles.date}>📅 {new Date(event.date).toLocaleString()}</Text>
+          <Text style={styles.title}>{event.name}</Text>
+          <Text style={styles.location}>📍 {event.location}</Text>
+          <Text style={styles.date}>📅 {new Date(event.date).toLocaleString()}</Text>
 
-        <Text style={styles.description}>
-          {event.description || 'Aucune description disponible.'}
-        </Text>
+          <Text style={styles.description}>
+            {event.description || 'Aucune description disponible.'}
+          </Text>
 
-        <TouchableOpacity style={styles.buyButton} onPress={handleBuyTicket}>
-          <Text style={styles.buyButtonText}>Acheter un ticket</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.buyButton} onPress={handleBuyTicket}>
+            <Text style={styles.buyButtonText}>Acheter un ticket</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
+
+      {/* Bottom Navigation bar (outside ScrollView) */}
+      {isTabRoute && (
+        <BottomNavigation
+          navigation={navigation}
+          currentRoute={currentRoute}
+          tabs={tabs}
+          theme="dark"
+          showLabels={true}
+          animationType="slide"
+        />
+      )}
     </MainLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  contentContainer: {
     flex: 1,
     backgroundColor: '#000',
     padding: 20,
+    paddingBottom: 80, // gives space above the bottom navigation
   },
   eventImage: {
     width: '100%',
@@ -72,6 +87,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
+    marginBottom: 20,
   },
   buyButtonText: {
     color: '#fff',

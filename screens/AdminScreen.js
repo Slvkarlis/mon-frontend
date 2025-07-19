@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import API_URL from '../config/api';
 export default function AdminScreen({ navigation }) {
   useEffect(() => {
     const checkRole = async () => {

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MainLayout from '../components/MainLayout'; // adapte selon ta structure
+import API_URL from '../config/api';
 
 export default function LieuListScreen({ route, navigation }) {
   const { categoryId } = route.params;
@@ -20,7 +21,7 @@ export default function LieuListScreen({ route, navigation }) {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`http://localhost:8083/api/lieux/by-category/${categoryId}`, {
+      const response = await fetch(`${API_URL}/api/lieux/by-category/${categoryId}`, {
         headers: {
           'Accept': 'application/json',
           ...(token && { Authorization: `Bearer ${token}` }),

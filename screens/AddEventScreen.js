@@ -10,6 +10,8 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import API_URL from '../config/api';
+
 export default function AddEventScreen({ navigation }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -33,7 +35,7 @@ export default function AddEventScreen({ navigation }) {
     };
 
     try {
-      const response = await fetch('http://localhost:8083/api/events', {
+      const response = await fetch(`${API_URL}/api/events`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
