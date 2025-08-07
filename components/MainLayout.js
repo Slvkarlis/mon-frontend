@@ -21,7 +21,7 @@ export default function MainLayout({ children, navigation }) {
   const tabs = [
     { 
       icon: 'home',
-      route: 'home',
+      route: 'Main',
       component: Ionicons 
     },
     { 
@@ -36,18 +36,37 @@ export default function MainLayout({ children, navigation }) {
     }
   ];
 
-  const activeIndex = tabs.findIndex(tab => tab.route === currentRoute);
-  const [previousIndex, setPreviousIndex] = useState(activeIndex >= 0 ? activeIndex : 0);
+  // Define which routes belong to which tab
+  const routeToTabMapping = {
+    'Main': 0,
+    'category': 1,
+    'CategoryListScreen': 1, // Category tab should stay active
+    'LieuListScreen': 1,     // Category tab should stay active
+    'LieuDetailsScreen': 1,  // Category tab should stay active
+    'Profile': 2,
+  };
+
+  // Get the active index based on current route, with fallback logic
+  const getActiveIndex = () => {
+    if (routeToTabMapping.hasOwnProperty(currentRoute)) {
+      return routeToTabMapping[currentRoute];
+    }
+    // Default to category tab for unknown routes (assuming they're part of category flow)
+    return 1;
+  };
+
+  const activeIndex = getActiveIndex();
+  const [previousIndex, setPreviousIndex] = useState(activeIndex);
 
   // Animation refs
-  const ballAnim = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
+  const ballAnim = useRef(new Animated.Value(activeIndex)).current;
   const scaleAnims = useRef(tabs.map(() => new Animated.Value(1))).current;
   const ballScale = useRef(new Animated.Value(1)).current;
   const ballOpacity = useRef(new Animated.Value(1)).current;
 
   // Initialize ball position
   useEffect(() => {
-    if (activeIndex >= 0 && activeIndex !== previousIndex) {
+    if (activeIndex !== previousIndex) {
       // Animate ball from previous position to new position
       Animated.sequence([
         // Scale up slightly at start
@@ -118,9 +137,14 @@ export default function MainLayout({ children, navigation }) {
       setPreviousIndex(index);
     }
 
-    // Navigate
+    // Navigate - only navigate if clicking on a different tab
     if (tab.route !== currentRoute && navigation) {
-      navigation.navigate(tab.route);
+      // For category tab, navigate to CategoryListScreen instead of 'category'
+      if (tab.route === 'category') {
+        navigation.navigate('CategoryListScreen');
+      } else {
+        navigation.navigate(tab.route);
+      }
     }
   };
 

@@ -273,17 +273,31 @@ export default function HomeScreen({ navigation }) {
     </View>
   )
 
+  const getEventImageSource = (event) => {
+    // If event has a base64 image, use it
+    if (event.image && event.image.trim()) {
+      return { uri: `data:image/jpeg;base64,${event.image}` }
+    }
+    // Otherwise, use the sample image as fallback
+    return require("../assets/sample-event.jpg")
+  }
+
   const renderEventCard = ({ item }) => (
     <TouchableOpacity
       style={styles.eventCard}
       onPress={() => {
-        navigation.getParent()?.navigate("EventDetails", { event: item })
+        // Navigate to the new EventDetailsScreen, passing the event item
+        navigation.navigate("EventDetails", { event: item })
       }}
     >
       <ImageBackground
-        source={require("../assets/sample-event.jpg")}
+        source={getEventImageSource(item)}
         style={styles.backgroundImage}
         imageStyle={styles.backgroundImageStyle}
+        onError={() => {
+          // If base64 image fails to load, this will be handled by the fallback logic
+          console.log("Failed to load event image, using fallback")
+        }}
       >
         <LinearGradient
           colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"]}
@@ -303,8 +317,6 @@ export default function HomeScreen({ navigation }) {
           <View style={{ flex: 1 }} />
 
           <View style={styles.eventFooter}>
-            <Text style={styles.eventDetailsTitle}>Event Details</Text>
-
             <View style={styles.dateTimeRow}>
               <View style={styles.dateContainer}>
                 <View style={styles.dateAccent}>
@@ -323,7 +335,6 @@ export default function HomeScreen({ navigation }) {
               </View>
 
               <View style={styles.timeContainer}>
-                
                 <View style={styles.timeInfo}>
                   <Text style={styles.timeLabel}>TIME</Text>
                   <Text style={styles.eventTime} numberOfLines={1} adjustsFontSizeToFit>
@@ -468,7 +479,6 @@ const styles = StyleSheet.create({
   loadingText: {
     color: "#E4E4E4",
     marginTop: 16,
-    // fontFamily: 'Urbanist', // Commented out as font might not be loaded
     fontSize: 16,
   },
   header: {
@@ -507,7 +517,6 @@ const styles = StyleSheet.create({
     color: "#141414",
     fontSize: 12,
     fontWeight: "bold",
-    // fontFamily: 'Urbanist',
   },
   profileButton: {
     padding: 4,
@@ -541,13 +550,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "bold",
     color: "#ffffff",
-    // fontFamily: 'Urbanist',
     marginRight: 8,
   },
   tripSubtitle: {
     fontSize: 16,
     color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
   },
   viewToggle: {
     flexDirection: "row",
@@ -574,7 +581,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
   },
   activeToggleText: {
     color: "#141414",
@@ -586,7 +592,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#ffffff",
-    // fontFamily: 'Urbanist',
     marginHorizontal: 20,
     marginBottom: 16,
   },
@@ -608,7 +613,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#ffffff",
-    // fontFamily: 'Urbanist',
   },
   monthInfo: {
     flexDirection: "row",
@@ -618,7 +622,6 @@ const styles = StyleSheet.create({
   monthEventCount: {
     fontSize: 14,
     color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
   },
   monthDates: {
     paddingHorizontal: 20,
@@ -653,7 +656,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
     marginBottom: 4,
   },
   selectedDateNumber: {
@@ -665,7 +667,6 @@ const styles = StyleSheet.create({
   compactDateMonth: {
     fontSize: 12,
     color: "#999",
-    // fontFamily: 'Urbanist',
   },
   selectedDateMonth: {
     color: "#141414",
@@ -691,7 +692,6 @@ const styles = StyleSheet.create({
     color: "#141414",
     fontSize: 12,
     fontWeight: "bold",
-    // fontFamily: 'Urbanist',
   },
   selectedEventCountText: {
     color: "#d24242",
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   eventCard: {
-    marginHorizontal: 0, // Removed horizontal margin here
+    marginHorizontal: 0,
     marginVertical: 10,
     borderRadius: 15,
     overflow: "hidden",
@@ -713,9 +713,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    height: 280, // Fixed height to ensure all content fits
-    width: width - 40, // Set width to screen width minus horizontal padding
-    alignSelf: "center", // Center the card
+    height: 280,
+    width: width - 40,
+    alignSelf: "center",
   },
   backgroundImage: {
     width: "100%",
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 10, // Adjusted margin
+    marginBottom: 10,
   },
   eventTitleContainer: {
     flex: 1,
@@ -742,13 +742,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#ffffff",
-    // fontFamily: 'Urbanist',
     marginBottom: 4,
   },
   eventLocation: {
     fontSize: 16,
     color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
   },
   eventBadge: {
     backgroundColor: "#d24242",
@@ -760,41 +758,22 @@ const styles = StyleSheet.create({
     color: "#141414",
     fontSize: 12,
     fontWeight: "bold",
-    // fontFamily: 'Urbanist',
-  },
-  eventDetails: {
-    // This section is now removed from the JSX
-  },
-  eventDetailsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#ffffff",
-    // fontFamily: 'Urbanist',
-    marginBottom: 4,
-  },
-  eventDetailsSubtitle: {
-    fontSize: 14,
-    color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
-    flex: 1, // Allow it to take available space
-    textAlign: "right", // Align to right
   },
   eventFooter: {
-    // This is the main footer container
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)", // Lighter border
+    borderTopColor: "rgba(255,255,255,0.1)",
   },
   dateTimeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end", // Align items to the bottom
+    alignItems: "flex-end",
     marginTop: 10,
   },
   dateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1, // Allow it to take space
+    flex: 1,
   },
   dateAccent: {
     backgroundColor: "#d24242",
@@ -815,9 +794,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#FFFFFF",
   },
-  dateInfo: {
-    // No flex: 1 here, let content define width
-  },
+  dateInfo: {},
   dateMonth: {
     fontSize: 14,
     fontWeight: "700",
@@ -833,68 +810,23 @@ const styles = StyleSheet.create({
   timeContainer: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1, // Allow it to take space
-    justifyContent: "flex-end", // Push content to the right
+    flex: 1,
+    justifyContent: "flex-end",
   },
-  timeAccent: {
-    backgroundColor: "#d24242",
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-    shadowColor: "#d24242",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  timeIcon: {
-    fontSize: 18,
-  },
-  timeInfo: {
-    // No flex: 1 here, let content define width
-  },
+  timeInfo: {},
   timeLabel: {
     fontSize: 12,
     fontWeight: "700",
     color: "#d24242",
     letterSpacing: 1,
     marginBottom: 2,
-    textAlign: "right", // Align label to right
+    textAlign: "right",
   },
   eventTime: {
     fontSize: 16,
     color: "#FFFFFF",
     fontWeight: "600",
-    textAlign: "right", // Align time to right
-  },
-  eventCode: {
-    backgroundColor: "#333",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  eventCodeText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "bold",
-    // fontFamily: 'Urbanist',
-  },
-  eventRoute: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  routeText: {
-    color: "#E4E4E4",
-    fontSize: 16,
-    fontWeight: "bold",
-    // fontFamily: 'Urbanist',
-  },
-  planeIcon: {
-    transform: [{ rotate: "90deg" }],
+    textAlign: "right",
   },
   noEventsContainer: {
     alignItems: "center",
@@ -905,14 +837,12 @@ const styles = StyleSheet.create({
   noEventsText: {
     fontSize: 18,
     color: "#E4E4E4",
-    // fontFamily: 'Urbanist',
     marginTop: 16,
     marginBottom: 8,
   },
   noEventsSubtext: {
     fontSize: 14,
     color: "#999",
-    // fontFamily: 'Urbanist',
     textAlign: "center",
   },
 })

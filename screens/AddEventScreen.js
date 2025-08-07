@@ -1,120 +1,635 @@
-import React, { useState, useEffect } from 'react';
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
-  Platform
-} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import API_URL from '../config/api';
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
+  KeyboardAvoidingView,
+  Image,
+  ActivityIndicator, // Import ActivityIndicator
+} from "react-native"
+import DateTimePicker from "@react-native-community/datetimepicker"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import API_URL from "../config/api"
+import * as ImagePicker from "expo-image-picker"
+import { Picker } from "@react-native-picker/picker" // Import Picker
 
 export default function AddEventScreen({ navigation }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [image, setImage] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  const [lieuId, setLieuId] = useState(''); // e.g. 1
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [image, setImage] = useState("") // Stores base64 string
+  const [date, setDate] = useState(new Date())
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showTimePicker, setShowTimePicker] = useState(false) // Renamed to avoid conflict
+  const [lieux, setLieux] = useState([]) // State for fetched locations
+  const [selectedLieuId, setSelectedLieuId] = useState(null) // State for selected location ID
+  const [loading, setLoading] = useState(false)
+  const [selectedImageUri, setSelectedImageUri] = useState(null) // Stores URI for display
+  const [fetchingLieux, setFetchingLieux] = useState(true) // Loading state for lieux
 
-  const handleSubmit = async () => {
-    const token = await AsyncStorage.getItem('token');
-    const event = {
-      name,
-      description,
-      image,
-      date: date.toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lieu: {
-        id: parseInt(lieuId),
-      },
-    };
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchLieux() // Re-fetch lieux when screen is focused
+    })
 
+    // Initial fetch when component mounts
+    fetchLieux()
+
+    return unsubscribe
+  }, [navigation]) // Add navigation to dependency array
+
+  const fetchLieux = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/events`, {
-        method: 'POST',
+      setFetchingLieux(true)
+      const token = await AsyncStorage.getItem("token")
+      const response = await fetch(`${API_URL}/api/lieux`, {
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(event),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error(`Erreur: ${response.status}`);
+        throw new Error(`Server error: ${response.status}`)
       }
 
-      alert('Événement ajouté avec succès');
-      navigation.goBack();
+      const data = await response.json()
+      setLieux(data)
+      if (data.length > 0) {
+        setSelectedLieuId(data[0].id) // Select first lieu by default
+      } else {
+        setSelectedLieuId(null) // No lieux available
+      }
     } catch (error) {
-      console.error('Erreur ajout événement :', error.message);
+      console.error("Error fetching locations:", error.message)
+      Alert.alert("Error", "Failed to load locations")
+    } finally {
+      setFetchingLieux(false)
     }
-  };
+  }
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Sorry, we need camera roll permissions to select images.")
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+      base64: true, // Request base64
+    })
+
+    if (!result.canceled) {
+      setSelectedImageUri(result.assets[0].uri)
+      setImage(result.assets[0].base64) // Store base64
+    }
+  }
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Sorry, we need camera permissions to take photos.")
+      return
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+      base64: true, // Request base64
+    })
+
+    if (!result.canceled) {
+      setSelectedImageUri(result.assets[0].uri)
+      setImage(result.assets[0].base64) // Store base64
+    }
+  }
+
+  const showImagePicker = () => {
+    Alert.alert("Select Image", "Choose how you want to select an image", [
+      { text: "Camera", onPress: takePhoto },
+      { text: "Gallery", onPress: pickImage },
+      { text: "Cancel", style: "cancel" },
+    ])
+  }
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      Alert.alert("Error", "Event name is required")
+      return
+    }
+
+    if (!description.trim()) {
+      Alert.alert("Error", "Description is required")
+      return
+    }
+
+    if (!selectedLieuId) {
+      Alert.alert("Error", "Location is required")
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const token = await AsyncStorage.getItem("token")
+      const event = {
+        name: name.trim(),
+        description: description.trim(),
+        image: image || null, // Send base64 string or null if no image
+        date: date.toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lieu: {
+          id: selectedLieuId, // Use selectedLieuId
+        },
+      }
+
+      const response = await fetch(`${API_URL}/api/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(event),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Erreur: ${response.status}`)
+      }
+
+      Alert.alert("Success", "Event added successfully", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ])
+    } catch (error) {
+      console.error("Erreur ajout événement :", error.message)
+      Alert.alert("Error", "Unable to add event")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Nom de l'événement</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} />
+      <StatusBar barStyle="light-content" backgroundColor="#141414" />
 
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        style={styles.input}
-        value={description}
-        onChangeText={setDescription}
-      />
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#E4E4E4" />
+        </TouchableOpacity>
 
-      <Text style={styles.label}>Image (URL)</Text>
-      <TextInput style={styles.input} value={image} onChangeText={setImage} />
+        <Text style={styles.headerTitle}>New Event</Text>
 
-      <Text style={styles.label}>Lieu ID</Text>
-      <TextInput
-        style={styles.input}
-        value={lieuId}
-        onChangeText={setLieuId}
-        keyboardType="numeric"
-      />
-
-      <Text style={styles.label}>Date</Text>
-      <Button title={date.toLocaleString()} onPress={() => setShowPicker(true)} />
-      {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode="datetime"
-          display="default"
-          onChange={(event, selectedDate) => {
-            const currentDate = selectedDate || date;
-            setShowPicker(Platform.OS === 'ios');
-            setDate(currentDate);
-          }}
-        />
-      )}
-
-      <View style={{ marginTop: 20 }}>
-        <Button title="Ajouter l'événement" onPress={handleSubmit} />
+        <View style={styles.headerRight} />
       </View>
+
+      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Form Section */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Event Information</Text>
+
+            {/* Event Name */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Event Name *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="calendar" size={20} color="#d24242" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Enter event name"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            {/* Description */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="document-text" size={20} color="#d24242" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Describe your event"
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+            </View>
+
+            {/* Image Picker */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Event Image</Text>
+              <TouchableOpacity style={styles.imagePickerButton} onPress={showImagePicker}>
+                {selectedImageUri ? (
+                  <View style={styles.selectedImageContainer}>
+                    <Image source={{ uri: selectedImageUri }} style={styles.selectedImage} />
+                    <View style={styles.imageOverlay}>
+                      <Ionicons name="camera" size={24} color="#ffffff" />
+                      <Text style={styles.imageOverlayText}>Change Image</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.imagePickerContent}>
+                    <View style={styles.imagePickerIcon}>
+                      <Ionicons name="camera" size={32} color="#d24242" />
+                    </View>
+                    <Text style={styles.imagePickerText}>Select Event Image</Text>
+                    <Text style={styles.imagePickerSubtext}>Tap to choose from gallery or camera</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Location Picker (replaces Lieu ID input) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Location *</Text>
+              {fetchingLieux ? (
+                <ActivityIndicator size="small" color="#d24242" style={{ marginTop: 10 }} />
+              ) : lieux.length > 0 ? (
+                <View style={styles.pickerContainer}>
+                  <Ionicons name="location" size={20} color="#d24242" style={styles.inputIcon} />
+                  <Picker
+                    selectedValue={selectedLieuId}
+                    onValueChange={(itemValue) => setSelectedLieuId(itemValue)}
+                    style={styles.picker}
+                    itemStyle={styles.pickerItem}
+                    dropdownIconColor="#E4E4E4"
+                  >
+                    {lieux.map((lieu) => (
+                      <Picker.Item key={lieu.id} label={lieu.nom} value={lieu.id} />
+                    ))}
+                  </Picker>
+                </View>
+              ) : (
+                <Text style={styles.noItemsText}>No locations available. Please add one first.</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Date & Time Section */}
+          <View style={styles.dateTimeSection}>
+            <Text style={styles.sectionTitle}>Date & Time</Text>
+
+            <View style={styles.dateTimeGrid}>
+              {/* Date Picker */}
+              <TouchableOpacity style={styles.dateTimeButton} onPress={() => setShowDatePicker(true)}>
+                <View style={styles.dateTimeIcon}>
+                  <Ionicons name="calendar-outline" size={24} color="#d24242" />
+                </View>
+                <View style={styles.dateTimeInfo}>
+                  <Text style={styles.dateTimeLabel}>Date</Text>
+                  <Text style={styles.dateTimeValue}>{formatDate(date)}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#E4E4E4" />
+              </TouchableOpacity>
+
+              {/* Time Picker */}
+              <TouchableOpacity style={styles.dateTimeButton} onPress={() => setShowTimePicker(true)}>
+                <View style={styles.dateTimeIcon}>
+                  <Ionicons name="time-outline" size={24} color="#d24242" />
+                </View>
+                <View style={styles.dateTimeInfo}>
+                  <Text style={styles.dateTimeLabel}>Time</Text>
+                  <Text style={styles.dateTimeValue}>{formatTime(date)}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#E4E4E4" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Date/Time Pickers */}
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                const currentDate = selectedDate || date
+                setShowDatePicker(Platform.OS === "ios")
+                setDate(currentDate)
+              }}
+            />
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={date}
+              mode="time"
+              display="default"
+              onChange={(event, selectedDate) => {
+                const currentDate = selectedDate || date
+                setShowTimePicker(Platform.OS === "ios")
+                setDate(currentDate)
+              }}
+            />
+          )}
+        </ScrollView>
+
+        {/* Submit Button */}
+        <View style={styles.submitSection}>
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading || fetchingLieux || lieux.length === 0}
+          >
+            <LinearGradient colors={loading ? ["#666", "#666"] : ["#d24242", "#d2425a"]} style={styles.submitGradient}>
+              <View style={styles.submitContent}>
+                {loading ? (
+                  <>
+                    <ActivityIndicator color="#ffffff" size="small" />
+                    <Text style={styles.submitText}>Creating...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                    <Text style={styles.submitText}>Create Event</Text>
+                  </>
+                )}
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#000',
+    flex: 1,
+    backgroundColor: "#141414",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: "#141414",
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#ffffff",
+  },
+  headerRight: {
+    width: 40,
+  },
+  keyboardAvoid: {
     flex: 1,
   },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  formSection: {
+    marginHorizontal: 20,
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
   label: {
-    color: '#fff',
-    fontWeight: 'bold',
-    marginTop: 12,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#E4E4E4",
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2a2a2a",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    backgroundColor: '#fff',
-    padding: 8,
-    borderRadius: 6,
+    flex: 1,
+    fontSize: 16,
+    color: "#ffffff",
+    padding: 0,
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  dateTimeSection: {
+    marginHorizontal: 20,
+    marginBottom: 32,
+  },
+  dateTimeGrid: {
+    gap: 12,
+  },
+  dateTimeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2a2a2a",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+    padding: 16,
+  },
+  dateTimeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(210, 66, 66, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  dateTimeInfo: {
+    flex: 1,
+  },
+  dateTimeLabel: {
+    fontSize: 14,
+    color: "#E4E4E4",
+    marginBottom: 4,
+  },
+  dateTimeValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  submitSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#141414",
+    borderTopWidth: 1,
+    borderTopColor: "#333",
+  },
+  submitButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#d24242",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  submitButtonDisabled: {
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  submitGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  submitContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  submitText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#ffffff",
+  },
+  imagePickerButton: {
+    backgroundColor: "#2a2a2a",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+    borderStyle: "dashed",
+    minHeight: 120,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  imagePickerContent: {
+    alignItems: "center",
+    padding: 20,
+  },
+  imagePickerIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(210, 66, 66, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  imagePickerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
+    marginBottom: 4,
+  },
+  imagePickerSubtext: {
+    fontSize: 14,
+    color: "#E4E4E4",
+    textAlign: "center",
+  },
+  selectedImageContainer: {
+    width: "100%",
+    height: 120,
+    position: "relative",
+  },
+  selectedImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  imageOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+  },
+  imageOverlayText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
     marginTop: 4,
   },
-});
+  pickerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2a2a2a",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === "ios" ? 12 : 0, // Adjust padding for Android picker
+  },
+  picker: {
+    flex: 1,
+    color: "#ffffff",
+  },
+  pickerItem: {
+    color: "#ffffff", // This might not work on Android directly, depends on theme
+  },
+  noItemsText: {
+    color: "#E4E4E4",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 10,
+  },
+})
